@@ -1,0 +1,85 @@
+name: release
+
+on:
+  push:
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Import certificate
+        env:
+          MACOS_CERT_P12_BASE64: ${{ secrets.MACOS_CERT_P12_BASE64 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/build.keychain-db"
+          KEYCHAIN_PASSWORD=$(uuidgen)
+          echo "KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
+          echo "$MACOS_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN" login.keychain-db
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
+          rm "$RUNNER_TEMP/cert.p12"
+          IDENTITIES=$(security find-identity -v -p codesigning "$KEYCHAIN" | grep "Developer ID Application" || true)
+          if [ "$(echo "$IDENTITIES" | grep -c .)" -ne 1 ]; then
+            echo "expected exactly one Developer ID Application identity"
+            exit 1
+          fi
+          echo "SIGN_IDENTITY=$(echo "$IDENTITIES" | sed -E 's/.*"(.*)"/\1/')" >> "$GITHUB_ENV"
+      - name: Build
+        run: VERSION=${GITHUB_REF_NAME#v} npm run build
+      - name: Verify
+        run: |
+          codesign --verify --strict --verbose=2 build/Draftpad.app
+          lipo -archs build/Draftpad.app/Contents/MacOS/Draftpad | grep -qx arm64
+      - name: Notarize
+        env:
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+        run: |
+          KEY="$RUNNER_TEMP/AuthKey.p8"
+          printf '%s' "$APPLE_API_KEY_P8" > "$KEY"
+          ditto -c -k --keepParent build/Draftpad.app Draftpad.zip
+          xcrun notarytool submit Draftpad.zip --key "$KEY" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER_ID" --wait --output-format json | tee notary.json
+          grep -q '"status" *: *"Accepted"' notary.json || {
+            xcrun notarytool log "$(grep -m1 '"id"' notary.json | sed -E 's/.*"id" *: *"([^"]+)".*/\1/')" --key "$KEY" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER_ID"
+            exit 1
+          }
+          xcrun stapler staple build/Draftpad.app
+          spctl --assess --type execute --verbose build/Draftpad.app
+      - name: Package
+        run: |
+          ASSET="Draftpad-$GITHUB_REF_NAME-arm64.zip"
+          echo "ASSET=$ASSET" >> "$GITHUB_ENV"
+          rm Draftpad.zip
+          ditto -c -k --keepParent build/Draftpad.app "$ASSET"
+          shasum -a 256 "$ASSET" > "$ASSET.sha256"
+      - uses: actions/attest-build-provenance@v2
+        if: github.event.repository.visibility == 'public'
+        with:
+          subject-path: ${{ env.ASSET }}
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" "$ASSET" "$ASSET.sha256" --generate-notes
+      - name: Cleanup
+        if: always()
+        run: |
+          security delete-keychain "$KEYCHAIN" || true
+          rm -f "$RUNNER_TEMP/AuthKey.p8" "$RUNNER_TEMP/cert.p12"
