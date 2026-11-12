@@ -28,7 +28,7 @@ func moveToApplicationsIfNeeded(continueLaunch: @escaping () -> Void) {
     NSApp.activate(ignoringOtherApps: true)
     let alert = NSAlert()
     alert.messageText = "アプリケーションフォルダに移動しますか？"
-    alert.informativeText = "自動アップデートを使うには、アプリケーションフォルダへの移動が必要です。"
+    alert.informativeText = "自動アップデートを使うには、アプリケーションフォルダへの移動が必要です。移動すると自動アップデートの確認も有効になります。"
     alert.addButton(withTitle: "移動する")
     alert.addButton(withTitle: "移動しない")
     alert.showsSuppressionButton = true
@@ -67,6 +67,7 @@ func moveToApplicationsIfNeeded(continueLaunch: @escaping () -> Void) {
         return continueLaunch()
     }
 
+    defaults.set(true, forKey: "SUEnableAutomaticChecks")
     let configuration = NSWorkspace.OpenConfiguration()
     configuration.createsNewApplicationInstance = true
     NSWorkspace.shared.openApplication(at: destination, configuration: configuration) { _, error in
