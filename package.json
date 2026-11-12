@@ -5,6 +5,7 @@
   "description": "Single-buffer draft editor for macOS (Swift + WKWebView + Monaco)",
   "scripts": {
     "build": "bash scripts/build.sh",
+    "icon": "bash scripts/make-icon.sh",
     "install-app": "bash scripts/build.sh && rm -rf ~/Applications/Draftpad.app && mkdir -p ~/Applications && cp -R build/Draftpad.app ~/Applications/Draftpad.app"
   },
   "devDependencies": {

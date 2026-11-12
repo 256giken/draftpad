@@ -29,6 +29,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <plist version="1.0">
 <dict>
   <key>CFBundleExecutable</key><string>Draftpad</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundleIdentifier</key><string>jp.co.0x100.draftpad</string>
   <key>CFBundleName</key><string>Draftpad</string>
   <key>CFBundlePackageType</key><string>APPL</string>
@@ -43,6 +44,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </dict>
 </plist>
 PLIST
+cp assets/AppIcon.icns "$APP/Contents/Resources/"
 cp web/* "$APP/Contents/Resources/web/"
 cp -R node_modules/monaco-editor/min/vs "$APP/Contents/Resources/web/vs"
 LICENSES="$APP/Contents/Resources/licenses"
