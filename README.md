@@ -5,6 +5,7 @@
 
 - Apple silicon (arm64) 専用、macOS 13 以上
 - インストール: GitHub Releases からダウンロード
+- ダウンロードして起動すると、アプリケーションフォルダへの移動を提案します（自動アップデートに必要）
 - ビルド: `npm ci && npm run install-app`
 - 下書きは `~/Library/Draftpad/draft.md` に保存されます
 - ライセンス: MIT

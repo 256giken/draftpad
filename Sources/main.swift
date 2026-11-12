@@ -52,12 +52,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKSc
     var text = ""
     var pendingSave: DispatchWorkItem?
     var alwaysOnTopItem: NSMenuItem!
-    let updaterController = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
+    let updaterController = SPUStandardUpdaterController(startingUpdater: false, updaterDelegate: nil, userDriverDelegate: nil)
     var fontSize: Int { get { defaults.object(forKey: "fontSize") as? Int ?? 13 } set { defaults.set(newValue, forKey: "fontSize") } }
     var theme: String { get { defaults.string(forKey: "theme") ?? "auto" } set { defaults.set(newValue, forKey: "theme") } }
     var alwaysOnTop: Bool { get { defaults.bool(forKey: "alwaysOnTop") } set { defaults.set(newValue, forKey: "alwaysOnTop") } }
 
     func applicationDidFinishLaunching(_ note: Notification) {
+        moveToApplicationsIfNeeded { [self] in launch() }
+    }
+
+    func launch() {
+        updaterController.startUpdater()
         text = (try? String(contentsOf: draftURL, encoding: .utf8)) ?? ""
         let config = WKWebViewConfiguration()
         config.setURLSchemeHandler(SchemeHandler(), forURLScheme: "draftpad")
@@ -116,6 +121,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKSc
     }
 
     func flush() {
+        guard window != nil else { return }
         pendingSave?.cancel()
         pendingSave = nil
         try? Data(text.utf8).write(to: draftURL, options: .atomic)
