@@ -40,7 +40,6 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>NSPrincipalClass</key><string>NSApplication</string>
   <key>SUFeedURL</key><string>https://github.com/256giken/draftpad/releases/latest/download/appcast.xml</string>
   <key>SUPublicEDKey</key><string>IlO9mc+5vo2ucVAAJgvWaRZs9T3sToZdhPmBmb8mGdU=</string>
-  <key>SUEnableAutomaticChecks</key><true/>
 </dict>
 </plist>
 PLIST
