@@ -58,6 +58,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKSc
     var alwaysOnTop: Bool { get { defaults.bool(forKey: "alwaysOnTop") } set { defaults.set(newValue, forKey: "alwaysOnTop") } }
 
     func applicationDidFinishLaunching(_ note: Notification) {
+        // Two instances would clobber each other's draft.md on flush. A relaunch passes the old PID; wait for it to exit.
+        if let i = CommandLine.arguments.firstIndex(of: "--wait-pid"), i + 1 < CommandLine.arguments.count,
+           let pid = pid_t(CommandLine.arguments[i + 1]) {
+            for _ in 0..<50 where kill(pid, 0) == 0 { usleep(100_000) }
+        }
+        if let id = Bundle.main.bundleIdentifier,
+           let other = NSRunningApplication.runningApplications(withBundleIdentifier: id)
+               .first(where: { !$0.isTerminated && $0.processIdentifier != NSRunningApplication.current.processIdentifier }) {
+            other.activate(options: [])
+            NSApp.terminate(nil)  // window is still nil here, so flush() writes nothing
+            return
+        }
         moveToApplicationsIfNeeded { [self] in launch() }
     }
 

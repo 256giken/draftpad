@@ -70,6 +70,7 @@ func moveToApplicationsIfNeeded(continueLaunch: @escaping () -> Void) {
     defaults.set(true, forKey: "SUEnableAutomaticChecks")
     let configuration = NSWorkspace.OpenConfiguration()
     configuration.createsNewApplicationInstance = true
+    configuration.arguments = ["--wait-pid", String(getpid())]
     NSWorkspace.shared.openApplication(at: destination, configuration: configuration) { _, error in
         DispatchQueue.main.async {
             if let error {
