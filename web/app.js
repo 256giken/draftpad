@@ -75,6 +75,16 @@ require(['vs/editor/editor.main'], () => {
   });
   const model = editor.getModel();
 
+  // While composing, WebKit scrolls the visible IME textarea to reveal the caret (3px off Monaco's own
+  // scrollTop), so the marked text jumps up and down on every keystroke. Put it back before it paints.
+  const ime = editor.getDomNode().querySelector('textarea.inputarea');
+  ime.addEventListener('scroll', () => {
+    if (!ime.classList.contains('ime-input')) return;
+    const rows = ime.value.slice(0, ime.selectionStart).split('\n').length - 1;
+    const top = rows * editor.getOption(monaco.editor.EditorOption.lineHeight);
+    if (ime.scrollTop !== top) ime.scrollTop = top;
+  });
+
   const updateStatus = () => {
     document.getElementById('chars').textContent = Array.from(model.getValue()).length + ' chars';
     document.getElementById('lines').textContent = model.getLineCount() + ' lines';
