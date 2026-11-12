@@ -65,7 +65,7 @@ jobs:
             xcrun notarytool log "$(grep -m1 '"id"' notary.json | sed -E 's/.*"id" *: *"([^"]+)".*/\1/')" --key "$KEY" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER_ID"
             exit 1
           }
-          xcrun stapler staple build/Draftpad.app
+          for i in 1 2 3; do xcrun stapler staple build/Draftpad.app && break; [ "$i" = 3 ] && exit 1; sleep 20; done
           spctl --assess --type execute --verbose build/Draftpad.app
       - name: Package
         run: |
