@@ -7,3 +7,4 @@
 - インストール: GitHub Releases からダウンロード
 - ビルド: `npm ci && npm run install-app`
 - 下書きは `~/Library/Draftpad/draft.md` に保存されます
+- ライセンス: MIT

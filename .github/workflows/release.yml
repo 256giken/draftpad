@@ -4,17 +4,21 @@ on:
   push:
     tags: ['v[0-9]+.[0-9]+.[0-9]+']
 
-permissions:
-  contents: write
-  id-token: write
-  attestations: write
+permissions: {}
 
 jobs:
   release:
     runs-on: macos-15
+    environment: release
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4.4.0
         with:
           node-version: 22
           cache: npm
@@ -70,16 +74,41 @@ jobs:
           rm Draftpad.zip
           ditto -c -k --keepParent build/Draftpad.app "$ASSET"
           shasum -a 256 "$ASSET" > "$ASSET.sha256"
-      - uses: actions/attest-build-provenance@v2
+      - name: Appcast
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+        run: |
+          SPARKLE_KEY="$RUNNER_TEMP/sparkle_ed_key"
+          printf '%s' "$SPARKLE_ED_PRIVATE_KEY" > "$SPARKLE_KEY"
+          SIGN_UPDATE=(vendor/Sparkle-*/bin/sign_update)
+          ATTRS=$("${SIGN_UPDATE[0]}" --ed-key-file "$SPARKLE_KEY" "$ASSET")
+          VERSION=${GITHUB_REF_NAME#v}
+          cat > appcast.xml <<XML
+          <?xml version="1.0" encoding="UTF-8"?>
+          <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+            <channel>
+              <title>Draftpad</title>
+              <item>
+                <title>$VERSION</title>
+                <sparkle:version>$VERSION</sparkle:version>
+                <sparkle:shortVersionString>$VERSION</sparkle:shortVersionString>
+                <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+                <pubDate>$(LC_ALL=C date -u '+%a, %d %b %Y %H:%M:%S +0000')</pubDate>
+                <enclosure url="https://github.com/256giken/draftpad/releases/download/$GITHUB_REF_NAME/$ASSET" type="application/octet-stream" $ATTRS/>
+              </item>
+            </channel>
+          </rss>
+          XML
+      - uses: actions/attest-build-provenance@v2.4.0
         if: github.event.repository.visibility == 'public'
         with:
           subject-path: ${{ env.ASSET }}
       - name: Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" "$ASSET" "$ASSET.sha256" --generate-notes
+        run: gh release create "$GITHUB_REF_NAME" "$ASSET" "$ASSET.sha256" appcast.xml --generate-notes
       - name: Cleanup
         if: always()
         run: |
           security delete-keychain "$KEYCHAIN" || true
-          rm -f "$RUNNER_TEMP/AuthKey.p8" "$RUNNER_TEMP/cert.p12"
+          rm -f "$RUNNER_TEMP/AuthKey.p8" "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/sparkle_ed_key"

@@ -1,4 +1,5 @@
 import Cocoa
+import Sparkle
 import WebKit
 
 let defaults = UserDefaults.standard
@@ -51,6 +52,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKSc
     var text = ""
     var pendingSave: DispatchWorkItem?
     var alwaysOnTopItem: NSMenuItem!
+    let updaterController = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
     var fontSize: Int { get { defaults.object(forKey: "fontSize") as? Int ?? 13 } set { defaults.set(newValue, forKey: "fontSize") } }
     var theme: String { get { defaults.string(forKey: "theme") ?? "auto" } set { defaults.set(newValue, forKey: "theme") } }
     var alwaysOnTop: Bool { get { defaults.bool(forKey: "alwaysOnTop") } set { defaults.set(newValue, forKey: "alwaysOnTop") } }
@@ -154,6 +156,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKSc
         }
         add("Draftpad", [
             mi("About Draftpad", #selector(NSApplication.orderFrontStandardAboutPanel(_:))),
+            mi("Check for Updates…", #selector(SPUStandardUpdaterController.checkForUpdates(_:)), target: updaterController),
             .separator(),
             mi("Hide Draftpad", #selector(NSApplication.hide(_:)), "h"),
             .separator(),
