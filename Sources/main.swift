@@ -46,7 +46,7 @@ final class EditorWebView: WKWebView {
     @objc func redo(_ sender: Any?) { evaluateJavaScript("draftpad.trigger('redo')") }
 }
 
-final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKScriptMessageHandler, WKNavigationDelegate, NSMenuDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKScriptMessageHandler, WKNavigationDelegate, NSMenuDelegate, NSMenuItemValidation {
     var window: NSWindow!
     var webView: EditorWebView!
     var text = ""
@@ -163,6 +163,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKSc
         add("Draftpad", [
             mi("About Draftpad", #selector(NSApplication.orderFrontStandardAboutPanel(_:))),
             mi("Check for Updates…", #selector(SPUStandardUpdaterController.checkForUpdates(_:)), target: updaterController),
+            mi("Check for Updates Automatically", #selector(toggleAutoUpdate), target: self),
             .separator(),
             mi("Hide Draftpad", #selector(NSApplication.hide(_:)), "h"),
             .separator(),
@@ -216,6 +217,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKSc
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         for i in menu.items { i.state = (i.representedObject as? String) == theme ? .on : .off }
+    }
+
+    func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        if item.action == #selector(toggleAutoUpdate) {
+            item.state = updaterController.updater.automaticallyChecksForUpdates ? .on : .off
+        }
+        return true
+    }
+
+    @objc func toggleAutoUpdate() {
+        updaterController.updater.automaticallyChecksForUpdates.toggle()
     }
 
     @objc func pickTheme(_ sender: NSMenuItem) {
