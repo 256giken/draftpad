@@ -85,13 +85,38 @@ require(['vs/editor/editor.main'], () => {
     if (ime.scrollTop !== top) ime.scrollTop = top;
   });
 
+  const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+  const countGraphemes = (s) => {
+    let n = 0;
+    for (const _ of segmenter.segment(s)) n++;
+    return n;
+  };
+  // The total is re-segmented only when the content changes; selection changes reuse it.
+  let total = countGraphemes(model.getValue());
+  let totalDirty = false;
   const updateStatus = () => {
-    document.getElementById('chars').textContent = Array.from(model.getValue()).length + ' chars';
-    document.getElementById('lines').textContent = model.getLineCount() + ' lines';
+    if (totalDirty) total = countGraphemes(model.getValue());
+    totalDirty = false;
+    let selected = 0;
+    for (const s of editor.getSelections() ?? []) {
+      if (!s.isEmpty()) selected += countGraphemes(model.getValueInRange(s));
+    }
+    document.getElementById('chars').textContent = 'Characters: ' + (selected > 0 ? selected + ' / ' : '') + total;
+    document.getElementById('lines').textContent = 'Lines: ' + model.getLineCount();
   };
   updateStatus();
+  // Status counting runs at most once per 200ms; further triggers in the window are folded in.
+  let statusTimer = null;
+  const scheduleStatus = () => {
+    statusTimer ??= setTimeout(() => {
+      statusTimer = null;
+      updateStatus();
+    }, 200);
+  };
+  editor.onDidChangeCursorSelection(scheduleStatus);
   model.onDidChangeContent(() => {
-    updateStatus();
+    totalDirty = true;
+    scheduleStatus();
     post({ type: 'text', text: model.getValue() });
   });
 
