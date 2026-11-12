@@ -1,0 +1,13 @@
+{
+  "name": "draftpad",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Single-buffer draft editor for macOS (Swift + WKWebView + Monaco)",
+  "scripts": {
+    "build": "bash scripts/build.sh",
+    "install-app": "bash scripts/build.sh && rm -rf ~/Applications/Draftpad.app && mkdir -p ~/Applications && cp -R build/Draftpad.app ~/Applications/Draftpad.app"
+  },
+  "devDependencies": {
+    "monaco-editor": "0.52.2"
+  }
+}
